@@ -40,10 +40,10 @@ async def set_daily_reward(ctx, *, amount: float):
     await ctx.send(f"Set daily reward to  ${daily_reward}");
 
 
-@bot.event
-async def on_command_error(ctx, error):
-    if isinstance(error, CommandNotFound):
-        return
-    raise error
+#@bot.event
+#async def on_command_error(ctx, error):
+#    if isinstance(error, CommandNotFound):
+#        return
+#    raise error
 
 bot.run(TOKEN)
