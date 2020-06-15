@@ -1,4 +1,3 @@
-from commands import *
 from util import *
 
 import os
@@ -6,16 +5,25 @@ import random
 import json
 import discord
 import sqlite3
+import finnhub
 
 from discord.ext import commands, tasks
 from dotenv import load_dotenv
 
 from discord.ext.commands import CommandNotFound
+
+load_dotenv()
 conn = sqlite3.connect("./db/userdata.db")
 c = conn.cursor()
 
+configuration = finnhub.Configuration(
+    api_key={
+        'token':os.getenv('FINNHUB_TOKEN')
+    }
+)
+finnhub_client = finnhub.DefaultApi(finnhub.ApiClient(configuration))
+
 bot = commands.Bot(command_prefix=".")
-load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 
 # Sending greeting message on cmd
@@ -31,19 +39,17 @@ async def on_guild_join(guild):
     conn.commit()
 
 
-
-@bot.command(aliases=['setdaily'])
-async def set_daily_reward(ctx, *, amount: float):
-    daily_reward = format(amount, '.2f')
-    c.execute(f"UPDATE server SET daily = {daily_reward} WHERE id = {ctx.guild.id}")
-    conn.commit()
-    await ctx.send(f"Set daily reward to  ${daily_reward}");
-
-
 #@bot.event
 #async def on_command_error(ctx, error):
 #    if isinstance(error, CommandNotFound):
 #        return
 #    raise error
+
+load_extensions = ['cmd', 'util']
+try:
+    for cog in load_extensions:
+        bot.load_extension(cog)
+except Exception as e:
+    print(e)
 
 bot.run(TOKEN)
