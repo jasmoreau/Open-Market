@@ -11,9 +11,8 @@ from discord.ext import commands, tasks
 from dotenv import load_dotenv
 
 from discord.ext.commands import CommandNotFound
-
 load_dotenv()
-conn = sqlite3.connect("./db/userdata.db")
+conn = sqlite3.connect("./db/u fasdfserdata.db")
 c = conn.cursor()
 
 configuration = finnhub.Configuration(
