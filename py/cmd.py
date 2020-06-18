@@ -1,6 +1,5 @@
 from main import *
 
-print(addition(2,2))
 class cmd(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -20,9 +19,9 @@ class cmd(commands.Cog):
         if get_ID(ctx) in str(c.execute(f'SELECT id FROM user').fetchall()): #checking if user is already in database
             await ctx.send("User already initialized")
             return
-        c.execute(f"INSERT INTO user VALUES ('{get_ID(ctx)}', 100000, '', '')") #adding user to database
+        c.execute("""INSERT INTO user VALUES (?, 100000, '{"trade":[]}', '')""",(str(get_ID(ctx)),)) #adding user to database
         conn.commit()
-        await ctx.send(f"You can now play! Starting balance: {get_balance(ctx)}")
+        await ctx.send(f"You can now play! Starting balance: {get_balance(ctx, c)}")
 
     @commands.command()
     async def buy(self, ctx, stock: str, num: float):
@@ -31,10 +30,14 @@ class cmd(commands.Cog):
         if current_price <= 0:
             await ctx.send("Stock does not exist. Try again!")
             return
-        await ctx.send(f'Buy {num} share(s) of {stock} for {current_price}? Reply with y/n')
+        await ctx.send(f'Buy {num} share(s) of {stock} for {current_price*num}? Reply with y/n')
+        #"order": counter,
+        loadedValue = {"id": stock, "quantity": num, "currentMarket": current_price, "totalPurchase": current_price*num}
+
+        print((get_balance(ctx,c)))
         msg = await bot.wait_for('message', timeout=60.0, check=lambda message: message.author == ctx.author) #checks if user replies with yes or no
         if msg.content.lower().startswith("y"):
-            c.execute(f"INSERT INTO user VALUES ({get_ID(ctx)})")
+            c.execute("""UPDATE user SET stock=?, bal=? WHERE id=?;""",(str(append_stock(ctx, loadedValue, c)), get_balance(ctx, c) - current_price*num,str(get_ID(ctx))))
             conn.commit()
             await ctx.send(f"Purchased {num} share(s) of {stock} for {current_price}")
         else:
