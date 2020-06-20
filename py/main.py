@@ -18,7 +18,7 @@ c = conn.cursor()
 
 configuration = finnhub.Configuration(
     api_key={
-        'token':os.getenv('FINNHUB_TOKEN')
+        'token': os.getenv('FINNHUB_TOKEN')
     }
 )
 finnhub_client = finnhub.DefaultApi(finnhub.ApiClient(configuration))
@@ -29,17 +29,20 @@ TOKEN = os.getenv('DISCORD_TOKEN')
 # Sending greeting message on cmd
 @bot.event
 async def on_ready():
- print(
-     f'{bot.user} is online.'
- )
+    print(
+        f'{bot.user} is online.'
+    )
+
 
 @bot.event
 async def on_guild_join(guild):
-    c.execute(f"INSERT INTO server VALUES ({guild.id},{get_prefix(guild)} = '.',100.00")
+    c.execute(
+        f"INSERT INTO server VALUES ({guild.id},{get_prefix(guild)} = '.',100.00")
     conn.commit()
 
-#@bot.event
-#async def on_command_error(ctx, error):
+
+# @bot.event
+# async def on_command_error(ctx, error):
 #    if isinstance(error, CommandNotFound):
 #        return
 #    raise error
