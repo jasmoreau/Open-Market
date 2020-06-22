@@ -12,15 +12,9 @@ def get_prefix(ctx, c):
 def append_stock(ctx, stock, c):
     import json
     record = c.execute("""SELECT stock FROM user WHERE id=?""",(get_ID(ctx),)).fetchone()
-    print(record)
-    print(str(record))
     trades = json.loads(str(record))
     trades["trade"].append(stock)
     trades = json.dumps(trades)
-
-    #for ele in trades['trade']:
-    #    print(ele)
-
     return trades
 
 
@@ -36,12 +30,37 @@ def check_24h(ctx, c, conn):
     first = str(c.execute("""SELECT time FROM user WHERE id=?""", (get_ID(ctx),)).fetchone()).replace("-", " ").replace(":", " ").replace(".", " ")
     first = datetime.strptime(first, "%Y %m %d %H %M %S %f")
     second = datetime.now()
-    if (second - first).total_seconds() > NUMBER_OF_SECONDS:
+    if (second - first).total_seconds() > NUMBER_OF_SECONDS: #finds difference between last claim and current
       c.execute(f'UPDATE user SET time = "{str(second)}" WHERE id = "{get_ID(ctx)}"')
       conn.commit()
-      return False #do something
+      return False #False when 24 hours has passed
     else:
         time = (timedelta(seconds=((second-first).total_seconds())))
         time -= timedelta(microseconds=time.microseconds)
         remaining_time = timedelta(days=1)-time
         return remaining_time
+
+def total_stocks(ctx, c, stock):
+    import json
+    record = c.execute("""SELECT stock FROM user WHERE id=?""", (get_ID(ctx),)).fetchone()
+    trades = json.loads(str(record))
+    trade = trades["trade"]
+    total = 0
+    for ele in trade:
+        if stock == ele["id"]:
+            total += ele["quantity"]
+    return total
+
+def print_history(ele):
+        if ele["quantity"] > 0:
+            return f"Bought {ele['quantity']} share(s) of {ele['id']} for ${ele['totalPurchase']}. ({ele['id']}: ${ele['currentMarket']})" + "\n"
+        else:
+            return f"Sold {ele['quantity']} share(s) of {ele['id']} for ${ele['totalPurchase']}. ({ele['id']}: ${ele['currentMarket']})" + "\n"
+
+
+def is_integer(n):
+    try:
+        int(n)
+        return True
+    except ValueError:
+        return False

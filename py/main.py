@@ -6,6 +6,7 @@ import json
 import discord
 import sqlite3
 import finnhub
+import ast
 
 from discord.ext import commands, tasks
 from dotenv import load_dotenv
@@ -39,7 +40,6 @@ async def on_guild_join(guild):
     c.execute(
         f"INSERT INTO server VALUES ({guild.id},{get_prefix(guild)} = '.',100.00")
     conn.commit()
-
 
 # @bot.event
 # async def on_command_error(ctx, error):
