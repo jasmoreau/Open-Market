@@ -20,6 +20,7 @@ c = conn.cursor()
 configuration = finnhub.Configuration(
     api_key={
         'token': os.getenv('FINNHUB_TOKEN')
+
     }
 )
 finnhub_client = finnhub.DefaultApi(finnhub.ApiClient(configuration))

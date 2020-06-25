@@ -77,14 +77,20 @@ class cmd(commands.Cog):
         if total < num:
             await ctx.send(f"You do not have enough shares. Your {stock} stock: {total}")
             return
+
         await ctx.send(f'Sell {num} share(s) of {stock} for ${final_price}? ({stock}: ${current_price}) Reply with y/n')
-        loadedValue = {"id": stock, "quantity": (num*-1), "currentMarket": current_price, "totalPurchase": final_price}
+        loadedValue = {"id": stock, "quantity": (num*-1), "currentMarket": current_price, "totalPurchase": (-1)*final_price}
 
         msg = await bot.wait_for('message', timeout=60.0, check=lambda message: message.author == ctx.author) #checks if user replies with yes or no
         if msg.content.lower().startswith("y"):
             c.execute("""UPDATE user SET stock=?, bal=? WHERE id=?;""",(str(append_stock(ctx, loadedValue, c)), get_balance(ctx, c) + final_price,str(get_ID(ctx))))
             conn.commit()
-            await ctx.send(f"Sold {num} share(s) of {stock} for ${final_price}. ({stock}: ${current_price})")
+            runningSum = 0
+            for ele in json.loads(c.execute("""SELECT stock FROM user WHERE id=?""",(get_ID(ctx),)).fetchone())["trade"]:
+                if ele["id"] == stock:
+                    runningSum += (ele["totalPurchase"])
+            await ctx.send(f"Sold {num} share(s) of {stock} for ${final_price}. ({stock}: ${current_price}). Total profits/loss from {stock}: ${round(total_stocks(ctx,c, stock)*current_price - runningSum, 2)}")
+
         else:
             await ctx.send("Sale cancelled")
 
@@ -143,6 +149,46 @@ class cmd(commands.Cog):
                 await ctx.send(f"No history of {stock}. Make sure it is a number or a valid stock symbol.")
                 return
             await ctx.send(final)
+
+    @commands.command(aliases=['g'])
+    async def graph(self, ctx, stock, day = 7):
+        from dotenv import load_dotenv
+        import requests
+        import time
+        import plotly.graph_objs as go
+        import pandas as pd
+        import json
+        from datetime import datetime
+
+        t = day * 86400
+        r = requests.get(f'https://finnhub.io/api/v1/stock/candle?symbol={stock}&resolution=1&from={int(time.time())-t}&to={int(time.time())}&format=json&token={os.getenv("FINNHUB_TOKEN")}')
+
+
+        # read json to data frame
+        # r = pd.read_json(str(r))
+        re = r.json()
+        counter = 0
+        arr = []
+        for ele in re['t']:
+            re['t'][counter] = str(datetime.utcfromtimestamp(ele).strftime('%Y-%m-%d-%H-%M-%S'))
+
+            counter+=1;
+            print(ele)
+        stockdata_df = pd.DataFrame(re)
+        fig = go.Figure(data=[go.Candlestick(x=stockdata_df['t'],
+                open=stockdata_df['o'],
+                high=stockdata_df['h'],
+                low=stockdata_df['l'],
+                close=stockdata_df['c'])])
+
+        fig.update_xaxes(
+            rangeslider_visible=False,
+            showticklabels=False,
+            title_text=f"From {datetime.utcfromtimestamp(int(time.time())-t).strftime('%Y-%m-%d')} To {datetime.utcfromtimestamp(int(time.time())).strftime('%Y-%m-%d')}",
+        )
+        fig.update_yaxes(title_text='Stock Price')
+
+        fig.show()
 
 def setup(bot):
     bot.add_cog(cmd(bot))

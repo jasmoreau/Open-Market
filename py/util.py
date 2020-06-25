@@ -3,7 +3,7 @@ def get_ID(ctx):
     return f'{str(ctx.guild.id) + str(ctx.message.author.id)}ID'
 
 def get_balance(ctx, c):
-    return c.execute("""SELECT bal FROM user WHERE id=?""", (get_ID(ctx),)).fetchone()
+    return round(c.execute("""SELECT bal FROM user WHERE id=?""", (get_ID(ctx),)).fetchone(),2)
 
 def get_prefix(ctx, c):
     print(c.execute("""SELECT prefix FROM server WHERE id=?""", (str(ctx.guild.id),)).fetchone())
