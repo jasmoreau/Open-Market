@@ -7,6 +7,9 @@ class cmd(commands.Cog):
 
     @commands.command(aliases=['setdaily'], pass_context=True)
     async def set_daily_reward(self, ctx, amount: float):
+        if check_not_role(ctx):
+            await ctx.send("Error: You do not have StockMaster role.")
+            return
         daily_reward = format(amount, '.2f')
         c.execute(f"UPDATE server SET daily = {daily_reward} WHERE id = {ctx.guild.id}") #sets daily_reward variable for server in database
         conn.commit()
@@ -26,8 +29,6 @@ class cmd(commands.Cog):
             await ctx.send(f"Has not been a day since you last claimed. Time remaining : {check_24h(ctx,c,conn)}")
         return
 
-
-
     @commands.command()
     async def init(self, ctx):
         if check_initialization(ctx, c) == False:
@@ -35,7 +36,31 @@ class cmd(commands.Cog):
             return
         c.execute("""INSERT INTO user VALUES (?, 100000, '{"trade":[]}', '2020-01-1 00:00:00.00')""",(str(get_ID(ctx)),)) #adding user to database
         conn.commit()
-        await ctx.send(f"You can now play! Starting balance: {get_balance(ctx, c)}")
+        embed = discord.Embed(color=0xff0000)
+        embed.add_field(name=f"User Initialized", value=f"""You can now play! Starting balance: {get_balance(ctx, c)}\n
+        Call {get_prefix(ctx,c)}help for help getting started.""", inline=False)
+        await ctx.send("", embed=embed)
+
+    @commands.command()
+    async def help(self, ctx):
+        embed = discord.Embed(color=0xff0000, url="https://github.com/jasmoreau/Open-Market")
+        embed.add_field(name="Welcome to Open Market! A discord stock market game.",
+        value=f"""Calling **{get_prefix(ctx,c)}init** will initialize you to the game.
+        **{get_prefix(ctx,c)}setdaily [amount]** (must have StockMaster role) sets daily reward amount (defaults to $100).
+        **{get_prefix(ctx,c)}getdaily** gives you the set reward every 24 hours
+        **{get_prefix(ctx,c)}bal** shows your balance
+        **{get_prefix(ctx,c)}buy [stock symbol] [quantity]** purchases a stock
+        **{get_prefix(ctx,c)}sell [stock symbol] [quantity]** sells a stock
+        **{get_prefix(ctx,c)}stock [stock symbol]** gets current value of a stock
+        **{get_prefix(ctx,c)}info [stock symbol] [days]** shows you important information about a stock from the past number of days
+        **{get_prefix(ctx,c)}graph [stock symbol] [days]** graphs stock history that many days back
+        **{get_prefix(ctx,c)}hist [number]** shows the last number of transactions
+
+        __Email m.jason77@gmail.com for help or error reporting.__
+        [Github](https://github.com/jasmoreau/Open-Market)
+        \nHave fun!
+        """, inline=False)
+        await ctx.send("", embed=embed)
 
     @commands.command()
     async def buy(self, ctx, stock: str, num: float):
@@ -111,14 +136,6 @@ class cmd(commands.Cog):
         await ctx.send(f"Your balance is ${get_balance(ctx,c)}")
         return
 
-    @commands.command(aliases=['info']) #if .info has no parameter, return all stocks owned and profit/loss on each
-    async def get_info(self, ctx, stock): #if .info has stock name, return embedded graph of stock, closing price,
-        if check_initialization(ctx, c): #total owned, profit/loss
-            await ctx.send(f"You need to {get_prefix(ctx, c)}init to initilize.")
-            return
-        await ctx.send(f"Total amount of {stock} is {total_stocks(ctx,c,stock)}")
-        return
-
     @commands.command(aliases=['hist'])
     async def get_history(self, ctx, temp="10"):
         if check_initialization(ctx, c):
@@ -150,45 +167,44 @@ class cmd(commands.Cog):
                 return
             await ctx.send(final)
 
-    @commands.command(aliases=['g'])
+    @commands.command(aliases=['g', 'info'])
     async def graph(self, ctx, stock, day = 7):
         from dotenv import load_dotenv
         import requests
         import time
-        import plotly.graph_objs as go
         import pandas as pd
         import json
         from datetime import datetime
+        from matplotlib import pyplot as plt
 
+        embed = discord.Embed(color=0xff0000)
+        embed.add_field(name=f"Getting info over {stock.upper()}...", value="This may take a few seconds...", inline=False)
+        await ctx.send("", embed=embed)
         t = day * 86400
         r = requests.get(f'https://finnhub.io/api/v1/stock/candle?symbol={stock}&resolution=1&from={int(time.time())-t}&to={int(time.time())}&format=json&token={os.getenv("FINNHUB_TOKEN")}')
 
-
-        # read json to data frame
-        # r = pd.read_json(str(r))
         re = r.json()
         counter = 0
         arr = []
         for ele in re['t']:
             re['t'][counter] = str(datetime.utcfromtimestamp(ele).strftime('%Y-%m-%d-%H-%M-%S'))
+            counter+=1
 
-            counter+=1;
-            print(ele)
         stockdata_df = pd.DataFrame(re)
-        fig = go.Figure(data=[go.Candlestick(x=stockdata_df['t'],
-                open=stockdata_df['o'],
-                high=stockdata_df['h'],
-                low=stockdata_df['l'],
-                close=stockdata_df['c'])])
+        plt.plot(stockdata_df['t'], stockdata_df['c'])
+        plt.xlabel(f'Past {day} day(s)')
+        plt.ylabel('Close Price')
+        plt.title(f'{stock.upper()}')
+        plt.savefig(f'{stock}{get_ID(ctx)}.png')
 
-        fig.update_xaxes(
-            rangeslider_visible=False,
-            showticklabels=False,
-            title_text=f"From {datetime.utcfromtimestamp(int(time.time())-t).strftime('%Y-%m-%d')} To {datetime.utcfromtimestamp(int(time.time())).strftime('%Y-%m-%d')}",
-        )
-        fig.update_yaxes(title_text='Stock Price')
+        file = discord.File(f"{stock}{get_ID(ctx)}.png", filename="image.png")
+        embed=discord.Embed(color=0x007cdb)
+        embed.set_image(url="attachment://image.png")
+        embed.add_field(name=f"{stock.upper()} Stock History Past {day} day(s)",
+            value=f"Last Closing Price: ${re['c'][-1]}\nChanged By: ${round(re['c'][-1] - re['c'][0], 2)} ({round(100*(re['c'][-1] - re['c'][0])/re['c'][0], 2)}%)\n{ctx.author.name}'s Change: ${round(total_stocks(ctx,c,stock)*re['c'][-1]-total_stock_cost(ctx, c, stock), 2)} ({round(100*(total_stocks(ctx,c,stock)*re['c'][-1]-total_stock_cost(ctx, c, stock))/total_stock_cost(ctx, c, stock), 2)}%)\nTotal Value of {ctx.author.name}'s {stock.upper()} Stocks: ${round(total_stocks(ctx,c,stock)*re['c'][-1], 2)} ({total_stocks(ctx,c,stock)} Shares)", inline=False)
+        await ctx.send(file=file,embed=embed)
 
-        fig.show()
+        return
 
 def setup(bot):
     bot.add_cog(cmd(bot))

@@ -51,12 +51,27 @@ def total_stocks(ctx, c, stock):
             total += ele["quantity"]
     return total
 
+def total_stock_cost(ctx, c, stock):
+    import json
+    record = c.execute("""SELECT stock FROM user WHERE id=?""", (get_ID(ctx),)).fetchone()
+    trades = json.loads(str(record))
+    trade = trades["trade"]
+    total = 0
+    for ele in trade:
+        if stock == ele["id"]:
+            total += ele["totalPurchase"]
+    return total
+
+def check_not_role(ctx):
+    if "StockMaster" in ctx.author.roles:
+        return False
+    return True
+
 def print_history(ele):
         if ele["quantity"] > 0:
             return f"Bought {ele['quantity']} share(s) of {ele['id']} for ${ele['totalPurchase']}. ({ele['id']}: ${ele['currentMarket']})" + "\n"
         else:
             return f"Sold {ele['quantity']} share(s) of {ele['id']} for ${ele['totalPurchase']}. ({ele['id']}: ${ele['currentMarket']})" + "\n"
-
 
 def is_integer(n):
     try:
